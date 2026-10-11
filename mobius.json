@@ -1,0 +1,214 @@
+{
+  "id": "tuning-engine",
+  "name": "Tuning Engine",
+  "version": "1.7.0",
+  "description": "Shared fine-tuning infrastructure for M\u00f6bius apps and agents: live models and methods, validated datasets, checkpointed CoreWeave Forge runs, metrics, stopping, and inference.",
+  "entry": "index.jsx",
+  "icon": "icon.png",
+  "offline_capable": false,
+  "offline": {
+    "reads": false,
+    "writes": "none",
+    "execution": "none"
+  },
+  "permissions": {},
+  "schedule": {
+    "default": "* * * * *",
+    "user_configurable": false,
+    "job": "tick.sh"
+  },
+  "service": {
+    "entry": "service.py",
+    "access": "apps",
+    "id": "tuning-engine"
+  },
+  "skills": [
+    "tuning-engine.md"
+  ],
+  "source_files": [
+    "service.py",
+    "tuning-engine.md",
+    "README.md"
+  ],
+  "imports": [
+    "react",
+    "react-dom"
+  ],
+  "tools": [
+    {
+      "name": "status",
+      "description": "Tuning Engine connection status (W&B / CoreWeave Forge account it bills).",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "list_methods",
+      "description": "Fine-tuning methods CoreWeave Forge offers now, each with its data spec, example rows and accepted hyperparameters.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "refresh": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "list_models",
+      "description": "Trainable base models from CoreWeave Forge, flagged serverless (base runs on Serverless Inference) and serverless_after_tuning (trained LoRA is served without deployment). Fetched live.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "refresh": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "upload_dataset",
+      "description": "Create, validate and seal a training dataset from a JSONL file path under /data or inline rows. Accepts {messages}, {prompt, completion} or Alpaca {instruction, input, output} rows. Returns dataset id.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "sft",
+              "rl"
+            ]
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "start_run",
+      "description": "Start a PAID fine-tuning run billed to the engine's W&B account. Only call after the owner explicitly approved this exact run. method sft trains on example answers; method rl samples answers from the current checkpoint, scores them with rl.reward and updates the LoRA each step (sampling is billed as inference).",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "dataset_id",
+          "model"
+        ],
+        "properties": {
+          "dataset_id": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "sft",
+              "rl"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "checkpoint_minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120
+          },
+          "parameters": {
+            "type": "object"
+          },
+          "rl": {
+            "type": "object",
+            "description": "RL loop: reward {type: similarity|exact_match|json_field|contains|numeric|regex|external, field?, pattern?}, steps, prompts_per_step, samples_per_prompt, temperature, max_tokens"
+          }
+        }
+      }
+    },
+    {
+      "name": "run_status",
+      "description": "Status of one run (progress, latest checkpoint and its model URI, ETA) or, without run_id, the list of runs.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "stop_run",
+      "description": "Stop a run now and keep its latest saved checkpoint.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "properties": {
+          "run_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "infer",
+      "description": "One chat completion from a run's checkpoint (step number, 'latest', or 0 for the base model). Billed at Serverless Inference rates.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "run_id",
+          "messages"
+        ],
+        "properties": {
+          "run_id": {
+            "type": "string"
+          },
+          "step": {},
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "max_tokens": {
+            "type": "integer"
+          },
+          "temperature": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  ],
+  "package_id": "a1bab192-9cf3-409e-8d14-88a25fd77668",
+  "store": {
+    "tagline": "One shared fine-tuning engine for your M\u00f6bius apps.",
+    "description": "Connect W&B once, then let TuningKit, purpose-built apps, and agents use the same fine-tuning infrastructure. Tuning Engine discovers current models and methods, validates app-prepared datasets, runs SFT or RL LoRA training on CoreWeave Forge, saves checkpoints, reports metrics, supports stopping, and serves inference. Each calling app sees only the datasets and runs it created. Your W&B key stays encrypted inside your installation. Preparing data does not start a paid run; training and inference may incur charges on the connected W&B account.",
+    "screenshots": [
+      {
+        "src": "static/store/tuning-engine-overview.png",
+        "alt": "Tuning Engine showing its three-step workflow, a fictional demo W&B connection, and a demo training run with checkpoint progress.",
+        "label": "One engine for setup, training, checkpoints, and inference"
+      }
+    ]
+  }
+}
